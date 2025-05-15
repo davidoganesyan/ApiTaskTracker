@@ -1,7 +1,9 @@
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.database.database import engine
 from app.models.tasks import Task, TaskAssignee
 from app.models.users import User
 
@@ -81,3 +83,11 @@ async def populate_database(session: AsyncSession):
     session.add_all(assignees)
 
     await session.commit()
+
+
+async def init_data():
+    async with async_sessionmaker(engine)() as session:
+        result = await session.execute(select(User).limit(1))
+        if result.scalars().first():
+            return
+        await populate_database(session)
