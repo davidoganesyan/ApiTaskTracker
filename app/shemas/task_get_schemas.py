@@ -4,6 +4,14 @@ from pydantic import BaseModel, ConfigDict
 
 
 class UserResponse(BaseModel):
+    """Модель ответа с данными пользователя.
+
+    Attributes:
+        name (str): Имя пользователя
+        surname (str): Фамилия пользователя
+        email (str): Email пользователя
+    """
+
     name: str
     surname: str
     email: str
@@ -12,6 +20,13 @@ class UserResponse(BaseModel):
 
 
 class AssigneeResponse(BaseModel):
+    """Модель связи пользователя с задачей.
+
+    Attributes:
+        user (UserResponse): Данные пользователя-исполнителя
+        assignee_status (str): Статус исполнителя в задаче
+    """
+
     user: UserResponse
     assignee_status: str
 
@@ -19,6 +34,24 @@ class AssigneeResponse(BaseModel):
 
 
 class TaskResponse(BaseModel):
+    """Полная модель задачи с вложенными данными.
+
+    Attributes:
+        id (int): Уникальный идентификатор задачи
+        title (str): Название задачи
+        description (str): Описание задачи
+        parent_id (int | None): ID родительской задачи (если есть)
+        children (list["TaskResponse"]): Список вложенных подзадач
+        created_at (datetime): Дата создания (ISO 8601)
+        end_date (datetime | None): Дата завершения (ISO 8601)
+        author (UserResponse): Данные автора задачи
+        status (str): Текущий статус задачи
+        assignees (list[AssigneeResponse]): Список исполнителей
+
+    Note:
+        Даты сериализуются в формате "YYYY-MM-DD HH:MM"
+    """
+
     id: int
     title: str
     description: str
@@ -37,6 +70,26 @@ class TaskResponse(BaseModel):
 
 
 class TaskResponseById(BaseModel):
+    """Упрощенная модель задачи для отдельного запроса.
+
+    Отличается от TaskResponse отсутствием:
+    - status
+    - children
+
+    Attributes:
+        id (int): Уникальный идентификатор задачи
+        title (str): Название задачи
+        description (str): Описание задачи
+        parent_id (int | None): ID родительской задачи (если есть)
+        created_at (datetime): Дата создания (ISO 8601)
+        end_date (datetime | None): Дата завершения (ISO 8601)
+        author (UserResponse): Данные автора задачи
+        assignees (list[AssigneeResponse]): Список исполнителей
+
+    Note:
+        Даты сериализуются в формате "YYYY-MM-DD HH:MM"
+    """
+
     id: int
     title: str
     description: str

@@ -3,39 +3,50 @@
 <head>
     <title>Дерево задач</title>
     <style>
-        .task-description {
-            display: block;
-            width: 100%;
-            margin: 8px 0;
-            white-space: pre-wrap; /* Сохраняет переносы строк */
-            word-wrap: break-word;
-            font-size: 0.9em;
-            color: #333;
-        }
+        /* Основные стили */
         .task-node {
-            position: relative; /* Обязательно для позиционирования дочерних элементов */
-            padding-bottom: 40px; /* Добавьте отступ снизу для кнопки */
+            position: relative;
+            padding: 12px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
-        .delete-btn-container {
-            position: absolute;
-            right: 15px; /* Отступ справа */
-            bottom: 10px; /* Отступ снизу */
-            display: none; /* Кнопка появляется при наведении */
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
         }
 
-        .task-node:hover .delete-btn-container {
-            display: block; /* Показываем кнопку при наведении */
+        .task-main {
+            flex: 1;
+            min-width: 0;
         }
-        .delete-btn-container {
-            z-index: 10; /* Чтобы кнопка была поверх других элементов */
+
+        .task-metadata {
+            text-align: right;
+            min-width: 250px;
+            margin-left: 20px;
         }
-        /* Кнопки действий */
+
+        .task-metadata small {
+            display: block;
+            margin: 2px 0;
+        }
+
+        .task-description {
+            margin: 8px 0;
+            color: #555;
+            white-space: pre-wrap;
+        }
+
         .task-actions {
             margin-top: 8px;
             display: flex;
             gap: 8px;
         }
+
         .task-action-btn {
             padding: 4px 8px;
             border: none;
@@ -43,15 +54,64 @@
             cursor: pointer;
             font-size: 0.8em;
         }
+
         .edit-btn {
             background: #ffc107;
             color: black;
         }
+
         .delete-btn {
             background: #dc3545;
             color: white;
         }
-        /* Модальное окно */
+
+        .collapsed {
+            overflow: hidden;
+            transition: all 0.3s ease-out;
+        }
+
+        .task-node ul {
+            padding-left: 20px;
+        }
+
+        .toggle-icon {
+            margin-right: 8px;
+            transition: transform 0.2s;
+            font-size: 1.2em;
+        }
+
+        .has-children .toggle-icon {
+            display: inline-block;
+        }
+
+        .has-children.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .assignee-status {
+            font-weight: bold;
+            margin-left: 5px;
+            text-transform: uppercase;
+            font-size: 0.7em;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        .assignee-status.pending {
+            color: #999;
+            background: #f0f0f0;
+        }
+
+        .assignee-status.completed {
+            color: #198754;
+            background: #d4edda;
+        }
+
+        .overdue {
+            background-color: #ffe6e6 !important;
+        }
+
+        /* Модальные окна */
         .modal {
             display: none;
             position: fixed;
@@ -61,6 +121,7 @@
             height: 100%;
             background-color: rgba(0,0,0,0.5);
         }
+
         .modal-content {
             background-color: #fefefe;
             margin: 15% auto;
@@ -69,115 +130,78 @@
             width: 50%;
             border-radius: 5px;
         }
+
         .close {
             float: right;
             cursor: pointer;
             font-size: 1.5em;
         }
-        .tree ul {
-            list-style: none;
-            padding-left: 20px;
-        }
-        .task-node {
-            cursor: pointer;
-            padding: 12px;
-            border: 1px solid #ddd;
-            margin: 5px 0;
-            border-radius: 4px;
-            position: relative;
-        }
-        .task-node:hover {
-            background-color: #f0f0f0;
-        }
-        .collapsed {
-            display: none;
-        }
-        .task-node small {
-            font-size: 0.8em;
-            color: #666;
-            display: block;
-            margin-top: 4px;
-        }
-        .overdue {
-            background-color: #ffe6e6 !important;
-        }
-        .assignee-status {
-            font-weight: bold;
-            margin-left: 5px;
-            text-transform: uppercase;
-            font-size: 0.7em;
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-        .assignee-status.pending {
-            color: #999;
-            background: #f0f0f0;
-        }
-        .assignee-status.completed {
-            color: #198754;
-            background: #d4edda;
-        }
     </style>
 </head>
 <body>
-<div id="task-tree"></div>
-<button class="task-action-btn" style="margin-bottom: 20px" onclick="openCreateModal()">+ Создать задачу</button>
+    <div id="task-tree"></div>
+    <button class="task-action-btn edit-btn" onclick="openCreateModal()" style="margin: 20px">+ Создать задачу</button>
 
+    <!-- Модальное окно создания -->
+    <div id="createModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCreateModal()">&times;</span>
+            <h3>Создать задачу</h3>
+            <form id="createTaskForm">
+                <label>Название:</label>
+                <input type="text" id="createTitle" required>
 
-<!-- Модальное окно создания -->
-<div id="createModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeCreateModal()">&times;</span>
-        <h3>Создать задачу</h3>
-        <form id="createTaskForm">
-            <label>Название:</label>
-            <input type="text" id="createTitle" required>
+                <label>Описание:</label>
+                <textarea id="createDescription" required></textarea>
 
-            <label>Описание:</label>
-            <textarea id="createDescription" required></textarea>
+                <label>Срок:</label>
+                <input type="datetime-local" id="createEndDate">
 
-            <label>Срок:</label>
-            <input type="datetime-local" id="createEndDate">
+                <label>Родительская задача (ID):</label>
+                <input type="number" id="createParentId" placeholder="Оставьте пустым для корневой задачи">
 
-            <label>Родительская задача (ID):</label>
-            <input type="number" id="createParentId" placeholder="Оставьте пустым для корневой задачи">
+                <label>Автор:</label>
+                <select id="createAuthor" required></select>
 
-            <label>Автор:</label>
-            <select id="createAuthor" required></select>
+                <label>Исполнители:</label>
+                <select id="createAssignees" multiple size="3"></select>
 
-            <label>Исполнители:</label>
-            <select id="createAssignees" multiple size="3"></select>
-
-            <button type="submit">Создать</button>
-        </form>
+                <button type="submit">Создать</button>
+            </form>
+        </div>
     </div>
-</div>
 
-<!-- Модальное окно редактирования -->
-<div id="editModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeEditModal()">&times;</span>
-        <h3>Редактировать задачу</h3>
-        <form id="editTaskForm">
-            <input type="hidden" id="editTaskId">
-            <label>Название:</label>
-            <input type="text" id="editTitle" required>
-            <label>Описание:</label>
-            <textarea id="editDescription" required></textarea>
-            <label>Срок:</label>
-            <input type="datetime-local" id="editEndDate">
-            <label>Статус:</label>
-            <select id="editStatus">
-                <option value="pending">В ожидании</option>
-                <option value="in_progress">В процессе</option>
-                <option value="completed">Завершено</option>
-            </select>
-            <label>Исполнители:</label>
-            <select id="editAssignees" multiple size="3"></select>
-            <button type="submit">Сохранить</button>
-        </form>
+    <!-- Модальное окно редактирования -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h3>Редактировать задачу</h3>
+            <form id="editTaskForm">
+                <input type="hidden" id="editTaskId">
+
+                <label>Название:</label>
+                <input type="text" id="editTitle" required>
+
+                <label>Описание:</label>
+                <textarea id="editDescription" required></textarea>
+
+                <label>Срок:</label>
+                <input type="datetime-local" id="editEndDate">
+
+                <label>Статус:</label>
+                <select id="editStatus">
+                    <option value="pending">В ожидании</option>
+                    <option value="in_progress">В процессе</option>
+                    <option value="completed">Завершено</option>
+                </select>
+
+                <label>Исполнители:</label>
+                <select id="editAssignees" multiple size="3"></select>
+
+                <button type="submit">Сохранить</button>
+            </form>
+        </div>
     </div>
-</div>
 
 <script>
     let allUsers = [];
@@ -197,16 +221,56 @@
 
     function buildTree(tasks) {
         const ul = document.createElement('ul');
+
         tasks.forEach(task => {
             const li = document.createElement('li');
             li.className = 'task-node';
             li.setAttribute('data-task-id', task.id);
 
-            // Контейнер для кнопок действий
+            // Заголовок с иконкой
+            const header = document.createElement('div');
+            header.className = 'task-header';
+
+            // Стрелка раскрытия
+            const toggleIcon = document.createElement('span');
+            toggleIcon.className = 'toggle-icon';
+            toggleIcon.textContent = '▶';
+
+            // Основной контент (слева)
+            const mainContent = document.createElement('div');
+            mainContent.className = 'task-main';
+            mainContent.innerHTML = `
+                <div class="task-title">${task.title}</div>
+                <div class="task-description">${task.description}</div>
+            `;
+
+            // Метаданные (справа)
+            const metadata = document.createElement('div');
+            metadata.className = 'task-metadata';
+            metadata.innerHTML = `
+                <small>Создано: ${formatDate(task.created_at)}</small>
+                ${task.end_date ? `<small>Срок: ${formatDate(task.end_date)}</small>` : ''}
+                <small>Автор: ${task.author.name} ${task.author.surname}</small>
+                <small>Статус: ${task.status}</small>
+                <small>Исполнители:
+                    ${task.assignees.length > 0
+                        ? task.assignees.map(a =>
+                            `${a.user.name} ${a.user.surname} <span class="assignee-status ${a.assignee_status}">${a.assignee_status}</span>`
+                        ).join(', ')
+                        : 'Не назначены'
+                    }
+                </small>
+            `;
+
+            // Сборка заголовка
+            header.appendChild(toggleIcon);
+            header.appendChild(mainContent);
+            header.appendChild(metadata);
+
+            // Кнопки действий
             const actions = document.createElement('div');
             actions.className = 'task-actions';
 
-            // Кнопка редактирования
             const editBtn = document.createElement('button');
             editBtn.className = 'task-action-btn edit-btn';
             editBtn.textContent = 'Редактировать';
@@ -215,79 +279,49 @@
                 openEditModal(task.id);
             };
 
-            // Кнопка удаления
-            const deleteBtnContainer = document.createElement('div');
-            deleteBtnContainer.className = 'delete-btn-container';
-
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'task-action-btn delete-btn';
             deleteBtn.textContent = 'Удалить';
             deleteBtn.onclick = (e) => {
                 e.stopPropagation();
                 if(confirm('Удалить задачу?')) {
-                    deleteTask(task.id);
+                    deleteTask(task.id, li);
                 }
             };
 
-            deleteBtnContainer.appendChild(deleteBtn);
-            li.appendChild(deleteBtnContainer); // Кнопка добавляется отдельно
-
             actions.appendChild(editBtn);
             actions.appendChild(deleteBtn);
+
+            // Сборка элемента
+            li.appendChild(header);
             li.appendChild(actions);
 
-            // Проверка просрочки
-            const isOverdue = task.end_date && new Date(task.end_date) < new Date();
-            if (isOverdue) li.classList.add('overdue');
-
-            // Заголовок задачи
-            const header = document.createElement('div');
-            header.innerHTML = `
-                <div style="display: flex; justify-content: space-between">
-                    <span>${task.title}</span>
-                    <small>
-                        Создано: ${formatDate(task.created_at)}
-                        ${task.end_date ? ` | Срок: ${formatDate(task.end_date)}` : ''}
-                        <br>
-                        <strong>Автор:</strong> ${task.author.name} ${task.author.surname}
-                        <br>
-                        <strong>Статус:</strong> ${task.status}
-                        <strong>Исполнители:</strong>
-                        ${task.assignees.length > 0
-                            ? task.assignees.map(a =>
-                                `${a.user.name} ${a.user.surname}
-                                <span class="assignee-status ${a.assignee_status}">
-                                    ${a.assignee_status}
-                                </span>`
-                            ).join(', ')
-                            : 'Не назначены'
-                        }
-                    </small>
-                </div>
-                <div class="task-description">${task.description}</div>
-            `;
-            header.style.cursor = 'pointer';
-            header.onclick = () => toggleChildren(li);
-            li.appendChild(header);
-
-            // Дочерние задачи
+            // Обработка дочерних задач
             if (task.children.length > 0) {
+                li.classList.add('has-children', 'collapsed');
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'collapsed';
                 childrenContainer.appendChild(buildTree(task.children));
+                childrenContainer.style.display = 'none';
                 li.appendChild(childrenContainer);
+
+                // Обработчик клика
+                header.addEventListener('click', () => {
+                    const isCollapsed = li.classList.toggle('collapsed');
+                    childrenContainer.style.display = isCollapsed ? 'none' : 'block';
+                    toggleIcon.textContent = isCollapsed ? '▶' : '▼';
+                });
+            }
+
+            // Проверка просрочки
+            if (task.end_date && new Date(task.end_date) < new Date()) {
+                li.classList.add('overdue');
             }
 
             ul.appendChild(li);
         });
-        return ul;
-    }
 
-    function toggleChildren(node) {
-        const children = node.querySelector('.collapsed');
-        if (children) {
-            children.style.display = children.style.display === 'none' ? 'block' : 'none';
-        }
+        return ul;
     }
 
     function formatDate(dateString) {
@@ -343,7 +377,7 @@
         document.getElementById('editModal').style.display = 'none';
     }
 
-    async function handleEditSubmit(e) {
+    document.getElementById('editTaskForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const taskId = document.getElementById('editTaskId').value;
         const updatedData = {
@@ -371,60 +405,57 @@
         } catch (error) {
             console.error('Ошибка обновления:', error);
         }
-    }
+    });
 
     function updateTaskInTree(updatedTask) {
         const taskElement = document.querySelector(`[data-task-id="${updatedTask.id}"]`);
         if (taskElement) {
-            const header = taskElement.querySelector('div > div');
-            header.innerHTML = `
-                <div style="display: flex; justify-content: space-between">
-                    <span>${updatedTask.title}</span>
-                    <small>
-                        Создано: ${formatDate(updatedTask.created_at)}
-                        ${updatedTask.end_date ? ` | Срок: ${formatDate(updatedTask.end_date)}` : ''}
-                        <br>
-                        <strong>Описание:</strong> ${updatedTask.description}
-                        <br>
-                        <strong>Автор:</strong> ${updatedTask.author.name} ${updatedTask.author.surname}
-                        <br>
-                        <strong>Исполнители:</strong>
-                        ${updatedTask.assignees.length > 0
-                            ? updatedTask.assignees.map(a =>
-                                `${a.user.name} ${a.user.surname}
-                                <span class="assignee-status ${a.assignee_status}">
-                                    ${a.assignee_status}
-                                </span>`
-                            ).join(', ')
-                            : 'Не назначены'
-                        }
-                    </small>
-                </div>
+            const mainContent = taskElement.querySelector('.task-main');
+            mainContent.innerHTML = `
+                <div class="task-title">${updatedTask.title}</div>
+                <div class="task-description">${updatedTask.description}</div>
+            `;
+
+            const metadata = taskElement.querySelector('.task-metadata');
+            metadata.innerHTML = `
+                <small>Создано: ${formatDate(updatedTask.created_at)}</small>
+                ${updatedTask.end_date ? `<small>Срок: ${formatDate(updatedTask.end_date)}</small>` : ''}
+                <small>Автор: ${updatedTask.author.name} ${updatedTask.author.surname}</small>
+                <small>Статус: ${updatedTask.status}</small>
+                <small>Исполнители:
+                    ${updatedTask.assignees.length > 0
+                        ? updatedTask.assignees.map(a =>
+                            `${a.user.name} ${a.user.surname} <span class="assignee-status ${a.assignee_status}">${a.assignee_status}</span>`
+                        ).join(', ')
+                        : 'Не назначены'
+                    }
+                </small>
             `;
 
             // Обновление статуса просрочки
-            const isOverdue = updatedTask.end_date && new Date(updatedTask.end_date) < new Date();
-            taskElement.classList.toggle('overdue', isOverdue);
+            if (updatedTask.end_date && new Date(updatedTask.end_date) < new Date()) {
+                taskElement.classList.add('overdue');
+            } else {
+                taskElement.classList.remove('overdue');
+            }
         }
     }
 
-
-        // Функция открытия модального окна создания
     function openCreateModal() {
         const authorSelect = document.getElementById('createAuthor');
         const assigneeSelect = document.getElementById('createAssignees');
 
-        // Заполняем авторов и исполнителей
+        // Заполнение авторов и исполнителей
         authorSelect.innerHTML = '';
         assigneeSelect.innerHTML = '';
         allUsers.forEach(user => {
-            // Для автора
+            // Автор
             const authorOption = document.createElement('option');
             authorOption.value = user.id;
             authorOption.textContent = `${user.name} ${user.surname}`;
             authorSelect.appendChild(authorOption);
 
-            // Для исполнителей
+            // Исполнители
             const assigneeOption = document.createElement('option');
             assigneeOption.value = user.id;
             assigneeOption.textContent = `${user.name} ${user.surname}`;
@@ -434,10 +465,8 @@
         document.getElementById('createModal').style.display = 'block';
     }
 
-    // Обработчик формы создания
     document.getElementById('createTaskForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-
         const newTask = {
             title: document.getElementById('createTitle').value,
             description: document.getElementById('createDescription').value,
@@ -468,11 +497,6 @@
     function closeCreateModal() {
         document.getElementById('createModal').style.display = 'none';
     }
-
-
-    document.getElementById('editTaskForm').addEventListener('submit', handleEditSubmit);
-
-
 </script>
 </body>
 </html>

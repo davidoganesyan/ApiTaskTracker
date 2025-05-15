@@ -6,6 +6,13 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(AsyncAttrs, DeclarativeBase):
+    """Базовый класс для всех моделей SQLAlchemy.
+
+    Наследует:
+        - AsyncAttrs: Поддержка асинхронных операций
+        - DeclarativeBase: Декларативный стиль SQLAlchemy
+    """
+
     pass
 
 
@@ -15,6 +22,25 @@ AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """Зависимость для инъекции асинхронной сессии БД.
+
+    Создает новую сессию для каждого запроса и автоматически:
+        - Фиксирует изменения при успешном выполнении
+        - Откатывает при возникновении ошибок
+        - Закрывает соединение
+
+    Returns:
+        AsyncSession: Асинхронная сессия SQLAlchemy
+
+    Использование:
+        db = Depends(get_db) в обработчиках FastAPI
+    """
     async with AsyncSessionLocal() as session:
-        yield session
-        await session.commit()
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

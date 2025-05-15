@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import HTTPException
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio.session import AsyncSession
@@ -12,6 +10,15 @@ from app.shemas.task_post_schemas import TaskCreate
 
 
 async def get_task_by_id(task_id: int, session: AsyncSession) -> Task | None:
+    """Получить задачу по ID с полными связями
+
+    Args:
+        task_id (int): ID запрашиваемой задачи
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+
+    Returns:
+        Task | None: Задача с автором и списком назначенных пользователей, или None если не найдена
+    """
     task = await session.execute(
         select(Task)
         .options(
@@ -23,7 +30,15 @@ async def get_task_by_id(task_id: int, session: AsyncSession) -> Task | None:
     return task.scalars().first()
 
 
-async def get_all_tasks(session: AsyncSession) -> List[Task]:
+async def get_all_tasks(session: AsyncSession) -> list[Task]:
+    """Получить список корневых задач с подзадачами
+
+    Args:
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+
+    Returns:
+        List[Task]: Список задач с подзадачами, авторами и назначенными пользователями
+    """
     result = await session.execute(
         select(Task).options(
             selectinload(Task.children),
@@ -33,16 +48,24 @@ async def get_all_tasks(session: AsyncSession) -> List[Task]:
     )
 
     all_tasks = result.scalars().all()
-    finale_tasks = []
-
-    for task in all_tasks:
-        if task.parent_id is None:
-            finale_tasks.append(task)
+    finale_tasks = [task for task in all_tasks if task.parent_id is None]
 
     return finale_tasks
 
 
 async def create_task(task_data: TaskCreate, session: AsyncSession) -> Task:
+    """Создать новую задачу
+
+    Args:
+        task_data (TaskCreate): Данные для создания задачи
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+
+    Returns:
+        Task: Созданная задача
+
+    Raises:
+        HTTPException(404): Если автор не найден
+    """
     author = await session.get(User, task_data.author_id)
     if not author:
         raise HTTPException(status_code=404, detail="User not found")
@@ -71,24 +94,28 @@ async def create_task(task_data: TaskCreate, session: AsyncSession) -> Task:
 async def update_task(
     task_id: int, task_data: TaskUpdate, session: AsyncSession
 ) -> Task:
+    """Частично обновить задачу
+
+    Args:
+        task_id (int): ID обновляемой задачи
+        task_data (TaskUpdate): Поля для изменения
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+
+    Returns:
+        Task: Обновлённая задача
+
+    Raises:
+        HTTPException(404): Если задача не найдена
+    """
     task = await get_task_by_id(task_id, session)
 
     if not task:
         raise HTTPException(404, detail="Task not found")
 
-    if task_data.title:
-        task.title = task_data.title
-    if task_data.description:
-        task.description = task_data.description
-    if task_data.end_date:
-        task.end_date = task_data.end_date
-    if task_data.status:
-        task.status = task_data.status
-    if task_data.parent_id is not None:
-        task.parent_id = task_data.parent_id
+    for field, value in task_data.model_dump(exclude_unset=True).items():
+        setattr(task, field, value)
 
-    if task_data.assignee_user_ids != []:
-        print(task_data.assignee_user_ids)
+    if task_data.assignee_user_ids:
         await session.execute(
             delete(TaskAssignee).where(TaskAssignee.task_id == task_id)
         )
@@ -102,7 +129,16 @@ async def update_task(
     return task
 
 
-async def delete_task(task_id: int, session: AsyncSession):
+async def delete_task(task_id: int, session: AsyncSession) -> None:
+    """Удалить задачу и все её подзадачи
+
+    Args:
+        task_id (int): ID удаляемой задачи
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+
+    Raises:
+        HTTPException(404): Если задача не найдена
+    """
     task = await session.get(Task, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")

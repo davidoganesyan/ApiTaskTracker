@@ -7,6 +7,19 @@ from app.database.database import Base
 
 
 class User(Base):
+    """Модель пользователя с базовой информацией и связями задач.
+
+    Attributes:
+        id (int): Уникальный идентификатор пользователя
+        name (str): Имя пользователя (до 30 символов)
+        surname (str): Фамилия пользователя (до 50 символов)
+        patronymic (str | None): Отчество (опционально, до 50 символов)
+        email (str): Уникальный email (до 100 символов)
+        position (str | None): Должность пользователя (опционально)
+        created_tasks (List[Task]): Задачи, созданные пользователем
+        assigned_tasks (List[TaskAssignee]): Задачи, назначенные пользователю
+    """
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
