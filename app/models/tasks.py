@@ -8,6 +8,22 @@ from app.database.database import Base
 
 
 class Task(Base):
+    """Модель задачи с поддержкой вложенности и связями с пользователями.
+
+    Attributes:
+        id (int): Уникальный идентификатор задачи
+        title (str): Заголовок задачи (до 50 символов)
+        description (str): Подробное описание задачи (до 500 символов)
+        created_at (datetime): Время создания (автоматическое)
+        end_date (datetime): Срок выполнения
+        status (str): Статус задачи (по умолчанию 'pending')
+        parent_id (int | None): ID родительской задачи (если есть)
+        parent (Task | None): Родительская задача
+        children (List[Task]): Список подзадач
+        author (User): Пользователь-создатель задачи
+        assignees (List[TaskAssignee]): Список назначенных исполнителей
+    """
+
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
@@ -38,6 +54,17 @@ class Task(Base):
 
 
 class TaskAssignee(Base):
+    """Связующая модель для назначения задач пользователям.
+
+    Attributes:
+        user_id (int): ID пользователя
+        task_id (int): ID задачи
+        assignee_status (str): Статус назначения (по умолчанию 'pending')
+        assigned_at (datetime): Время назначения (автоматическое)
+        user (User): Связанный пользователь
+        task (Task): Связанная задача
+    """
+
     __tablename__ = "task_assignees"
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)

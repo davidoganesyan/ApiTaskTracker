@@ -1,14 +1,26 @@
 from datetime import datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.database import engine
+from app.database.database import AsyncSessionLocal
 from app.models.tasks import Task, TaskAssignee
 from app.models.users import User
 
 
-async def populate_database(session: AsyncSession):
+async def populate_database(session: AsyncSession) -> None:
+    """Заполнение базы данных тестовыми данными.
+
+    Создает:
+    - 3 тестовых пользователя
+    - 3 основные задачи
+    - 3 подзадачи
+    - 1 вложенную подзадачу
+    - Назначения исполнителей
+
+    Args:
+        session (AsyncSession): Асинхронная сессия SQLAlchemy
+    """
     users = [
         User(name="John", surname="Doe", email="john@example.com"),
         User(name="Maria", surname="Ivanova", email="maria@example.com"),
@@ -85,8 +97,14 @@ async def populate_database(session: AsyncSession):
     await session.commit()
 
 
-async def init_data():
-    async with async_sessionmaker(engine)() as session:
+async def init_data() -> None:
+    """Инициализация данных при старте приложения.
+
+    Проверяет наличие пользователей в БД:
+    - Если пользователи существуют - пропускает заполнение
+    - Если БД пуста - вызывает populate_database()
+    """
+    async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).limit(1))
         if result.scalars().first():
             return

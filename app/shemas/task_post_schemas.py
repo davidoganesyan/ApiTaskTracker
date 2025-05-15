@@ -4,6 +4,27 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TaskCreate(BaseModel):
+    """Модель для создания новой задачи.
+
+    Обязательные поля:
+    - title
+    - description
+    - end_date
+    - author_id
+
+    Attributes:
+        title (str): Название задачи
+        description (str): Подробное описание задачи
+        end_date (datetime): Срок выполнения (YYYY-MM-DD HH:mm)
+        parent_id (int | None): ID родительской задачи (для подзадач)
+        author_id (int): ID пользователя-автора задачи
+        assignee_user_ids (list[int]): Список ID исполнителей (по умолчанию пустой)
+
+    Note:
+        Для end_date используйте формат "YYYY-MM-DD HH:mm"
+        Пример тела запроса доступен в конфигурации модели
+    """
+
     title: str
     description: str
     end_date: datetime = Field(json_schema_extra={"format": "YYYY-MM-DD HH:mm"})
